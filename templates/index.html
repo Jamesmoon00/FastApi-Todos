@@ -23,10 +23,10 @@
           const li = document.createElement("li");
           li.textContent = `${todo.title}: ${todo.description} (Completed: ${todo.completed})`;
           const editButton = document.createElement("button");
-          editButton.textContent = "Edit";
+          editButton.textContent = "수정";
           editButton.onclick = () => editTodo(todo.id);
           const deleteButton = document.createElement("button");
-          deleteButton.textContent = "Delete";
+          deleteButton.textContent = "삭제";
           deleteButton.onclick = () => deleteTodo(todo.id);
           li.appendChild(editButton);
           li.appendChild(deleteButton);
