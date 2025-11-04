@@ -4,3 +4,4 @@ pytest
 pytest-html
 httpx
 pytest-cov
+sqlmodel

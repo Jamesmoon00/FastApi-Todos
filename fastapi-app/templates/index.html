@@ -102,29 +102,98 @@
     <h1>To-Do List</h1>
     <ul id="todo-list"></ul>
     <form id="todo-form">
-      <input type="text" id="title" placeholder="학번" required />
+      <input type="text" id="title" placeholder="할일" required />
       <input type="text" id="description" placeholder="이름" required />
       <button type="submit">추가</button>
     </form>
     <script>
+      function render(todos) {
+        const todoList = document.getElementById("todo-list");
+        todoList.innerHTML = "";
+
+        // 완료된 아이템은 렌더링하지 않음(체크 시 자동히 사라짐)
+        const active = todos.filter((t) => !t.completed);
+        if (active.length === 0) {
+          const li = document.createElement("li");
+          li.textContent = "할 일이 없습니다.";
+          todoList.appendChild(li);
+          return;
+        }
+
+        active.forEach((todo) => {
+          const li = document.createElement("li");
+
+          // 체크박스
+          const cb = document.createElement("input");
+          cb.type = "checkbox";
+          cb.checked = false; // 미완료만 렌더링하므로 기본 false
+          cb.title = "완료로 표시";
+          cb.addEventListener("change", async () => {
+            // 체크되면 서버에 완료 처리 → 즉시 DOM에서 제거
+            if (cb.checked) {
+              await fetch(`/todos/${todo.id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  id: todo.id,
+                  title: todo.title,
+                  description: todo.description,
+                  completed: true,
+                }),
+              });
+              li.remove();
+            }
+          });
+
+          const label = document.createElement("span");
+          label.textContent = `${todo.title}: ${todo.description}`;
+
+          // 기존 버튼 유지(원하면 삭제해도 됨)
+          const editButton = document.createElement("button");
+          editButton.textContent = "수정";
+          editButton.onclick = async () => {
+            const title = prompt("새로운 할 일을 입력하세요:", todo.title);
+            if (title === null) return;
+            const description = prompt(
+              "새 이름을 입력하세요:",
+              todo.description
+            );
+            if (description === null) return;
+
+            const response = await fetch(`/todos/${todo.id}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                id: todo.id,
+                title,
+                description,
+                completed: false,
+              }),
+            });
+            if (response.ok) fetchTodos();
+          };
+
+          const deleteButton = document.createElement("button");
+          deleteButton.textContent = "삭제";
+          deleteButton.onclick = async () => {
+            const response = await fetch(`/todos/${todo.id}`, {
+              method: "DELETE",
+            });
+            if (response.ok) li.remove();
+          };
+
+          li.prepend(cb);
+          li.appendChild(label);
+          li.appendChild(editButton);
+          li.appendChild(deleteButton);
+          document.getElementById("todo-list").appendChild(li);
+        });
+      }
+
       async function fetchTodos() {
         const response = await fetch("/todos");
         const todos = await response.json();
-        const todoList = document.getElementById("todo-list");
-        todoList.innerHTML = "";
-        todos.forEach((todo) => {
-          const li = document.createElement("li");
-          li.textContent = `${todo.title}: ${todo.description} (Completed: ${todo.completed})`;
-          const editButton = document.createElement("button");
-          editButton.textContent = "수정";
-          editButton.onclick = () => editTodo(todo.id);
-          const deleteButton = document.createElement("button");
-          deleteButton.textContent = "삭제";
-          deleteButton.onclick = () => deleteTodo(todo.id);
-          li.appendChild(editButton);
-          li.appendChild(deleteButton);
-          todoList.appendChild(li);
-        });
+        render(todos);
       }
 
       async function editTodo(id) {
@@ -156,13 +225,15 @@
         .getElementById("todo-form")
         .addEventListener("submit", async (event) => {
           event.preventDefault();
-          const title = document.getElementById("title").value;
-          const description = document.getElementById("description").value;
+          const title = document.getElementById("title").value.trim(); // 학번
+          const description = document
+            .getElementById("description")
+            .value.trim(); // 이름
+          if (!title || !description) return;
+
           const response = await fetch("/todos", {
             method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               id: Date.now(),
               title,
@@ -171,6 +242,8 @@
             }),
           });
           if (response.ok) {
+            document.getElementById("title").value = "";
+            document.getElementById("description").value = "";
             fetchTodos();
           }
         });
