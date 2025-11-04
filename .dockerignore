@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+*.pyc
+*.venv
+venv/
+.DS_Store
+
+# Git (소스코드 관리 파일)
+.git/
+
+# 테스트 및 보고서 파일
+pytest_report/
+htmlcov/
+coverage.xml
