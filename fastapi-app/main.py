@@ -4,6 +4,9 @@ from pydantic import BaseModel
 import json
 import os
 
+# 현재 파일(main.py)이 있는 디렉토리 경로
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 app = FastAPI()
 
 # To-Do 항목 모델
@@ -37,7 +40,7 @@ def get_todos():
 @app.post("/todos", response_model=TodoItem)
 def create_todo(todo: TodoItem):
     todos = load_todos()
-    todos.append(todo.dict())
+    todos.append(todo.model_dump())
     save_todos(todos)
     return todo
 
@@ -60,9 +63,11 @@ def delete_todo(todo_id: int):
     save_todos(todos)
     return {"message": "To-Do item deleted"}
 
-# HTML 파일 서빙
+
 @app.get("/", response_class=HTMLResponse)
 def read_root():
-    with open("templates/index.html", "r") as file:
+    # 절대 경로를 사용하여 파일에 접근
+    html_file_path = os.path.join(BASE_DIR, "templates", "index.html")
+    with open(html_file_path, "r") as file: # 66행 근처
         content = file.read()
     return HTMLResponse(content=content)

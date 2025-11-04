@@ -23,7 +23,7 @@ def test_get_todos_empty():
 
 def test_get_todos_with_items():
     todo = TodoItem(id=1, title="Test", description="Test description", completed=False)
-    save_todos([todo.dict()])
+    save_todos([todo.model_dump()])
     response = client.get("/todos")
     assert response.status_code == 200
     assert len(response.json()) == 1
@@ -42,7 +42,7 @@ def test_create_todo_invalid():
 
 def test_update_todo():
     todo = TodoItem(id=1, title="Test", description="Test description", completed=False)
-    save_todos([todo.dict()])
+    save_todos([todo.model_dump()])
     updated_todo = {"id": 1, "title": "Updated", "description": "Updated description", "completed": True}
     response = client.put("/todos/1", json=updated_todo)
     assert response.status_code == 200
@@ -55,7 +55,7 @@ def test_update_todo_not_found():
 
 def test_delete_todo():
     todo = TodoItem(id=1, title="Test", description="Test description", completed=False)
-    save_todos([todo.dict()])
+    save_todos([todo.model_dump()])
     response = client.delete("/todos/1")
     assert response.status_code == 200
     assert response.json()["message"] == "To-Do item deleted"
