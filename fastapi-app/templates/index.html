@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ko">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -16,27 +16,27 @@
         margin: 0;
         padding: 40px 20px;
       }
-
       h1 {
         color: #1e88e5;
         margin-bottom: 20px;
       }
-
       form {
         display: flex;
         gap: 10px;
         margin-bottom: 30px;
+        flex-wrap: wrap;
       }
 
-      input[type="text"] {
+      input[type="text"],
+      select#priority {
         padding: 10px 12px;
         border: 1px solid #ccc;
         border-radius: 8px;
         outline: none;
         transition: 0.2s;
       }
-
-      input[type="text"]:focus {
+      input[type="text"]:focus,
+      select#priority:focus {
         border-color: #1e88e5;
         box-shadow: 0 0 4px rgba(30, 136, 229, 0.4);
       }
@@ -51,7 +51,6 @@
         font-weight: bold;
         transition: 0.2s;
       }
-
       button:hover {
         background-color: #1565c0;
       }
@@ -60,11 +59,10 @@
         list-style: none;
         padding: 0;
         width: 100%;
-        max-width: 500px;
+        max-width: 600px;
       }
-
       li {
-        background-color: white;
+        background-color: #fff;
         border: 1px solid #e0e0e0;
         border-radius: 10px;
         padding: 12px 16px;
@@ -73,73 +71,121 @@
         justify-content: space-between;
         align-items: center;
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        gap: 8px;
+      }
+      .left {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .right {
+        display: flex;
+        align-items: center;
+        gap: 6px;
       }
 
       li button {
-        margin-left: 6px;
         padding: 6px 10px;
         font-size: 13px;
+        margin: 0;
       }
-
-      li button:nth-child(1) {
+      .btn-edit {
         background-color: #ffb300;
       }
-
-      li button:nth-child(1):hover {
+      .btn-edit:hover {
         background-color: #f57c00;
       }
-
-      li button:nth-child(2) {
+      .btn-del {
         background-color: #e53935;
       }
-
-      li button:nth-child(2):hover {
+      .btn-del:hover {
         background-color: #c62828;
+      }
+
+      .priority-badge {
+        margin-left: 6px;
+        padding: 2px 8px;
+        border-radius: 999px;
+        font-size: 12px;
+        border: 1px solid #e0e0e0;
+      }
+      .priority-badge.high {
+        background: #ffebee;
+      }
+      .priority-badge.none {
+        background: #f5f5f5;
+        color: #777;
+      }
+      .empty {
+        color: #777;
+        text-align: center;
       }
     </style>
   </head>
   <body>
     <h1>To-Do List</h1>
+
     <ul id="todo-list"></ul>
+
     <form id="todo-form">
       <input type="text" id="title" placeholder="할일" required />
       <input type="text" id="description" placeholder="이름" required />
+      <select id="priority" aria-label="우선순위">
+        <option value="none" selected>-</option>
+        <option value="high">높음</option>
+      </select>
       <button type="submit">추가</button>
     </form>
+
     <script>
+      // ---- 정렬 유틸: high 우선, 동순위는 최신(id 큰 값) 먼저 ----
+      const priorityWeight = { high: 0, none: 1, undefined: 1, null: 1 };
+      function normalizePriority(p) {
+        return p === "high" ? "high" : "none";
+      }
+      function sortByPriorityThenTime(list) {
+        return list.slice().sort((a, b) => {
+          const wa = priorityWeight[normalizePriority(a.priority)];
+          const wb = priorityWeight[normalizePriority(b.priority)];
+          if (wa !== wb) return wa - wb; // high 먼저
+          return (b.id ?? 0) - (a.id ?? 0); // 최신 먼저
+        });
+      }
+
+      // ---- 렌더 ----
       function render(todos) {
         const todoList = document.getElementById("todo-list");
         todoList.innerHTML = "";
 
-        // 완료된 아이템은 렌더링하지 않음(체크 시 자동히 사라짐)
+        // 미완료만 표시
         const active = todos.filter((t) => !t.completed);
         if (active.length === 0) {
           const li = document.createElement("li");
+          li.className = "empty";
           li.textContent = "할 일이 없습니다.";
           todoList.appendChild(li);
           return;
         }
 
-        active.forEach((todo) => {
+        const sorted = sortByPriorityThenTime(active);
+
+        sorted.forEach((todo) => {
           const li = document.createElement("li");
 
-          // 체크박스
+          // 왼쪽(체크박스+라벨)
+          const left = document.createElement("div");
+          left.className = "left";
+
           const cb = document.createElement("input");
           cb.type = "checkbox";
-          cb.checked = false; // 미완료만 렌더링하므로 기본 false
+          cb.checked = false;
           cb.title = "완료로 표시";
           cb.addEventListener("change", async () => {
-            // 체크되면 서버에 완료 처리 → 즉시 DOM에서 제거
             if (cb.checked) {
               await fetch(`/todos/${todo.id}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  id: todo.id,
-                  title: todo.title,
-                  description: todo.description,
-                  completed: true,
-                }),
+                body: JSON.stringify({ ...todo, completed: true }),
               });
               li.remove();
             }
@@ -148,8 +194,21 @@
           const label = document.createElement("span");
           label.textContent = `${todo.title}: ${todo.description}`;
 
-          // 기존 버튼 유지(원하면 삭제해도 됨)
+          const badge = document.createElement("span");
+          const p = normalizePriority(todo.priority);
+          badge.textContent = p === "high" ? "HIGH" : "-";
+          badge.className = "priority-badge " + p;
+
+          left.appendChild(cb);
+          left.appendChild(label);
+          left.appendChild(badge);
+
+          // 오른쪽(수정/삭제)
+          const right = document.createElement("div");
+          right.className = "right";
+
           const editButton = document.createElement("button");
+          editButton.className = "btn-edit";
           editButton.textContent = "수정";
           editButton.onclick = async () => {
             const title = prompt("새로운 할 일을 입력하세요:", todo.title);
@@ -159,14 +218,21 @@
               todo.description
             );
             if (description === null) return;
+            const priorityRaw = prompt(
+              "우선순위 (high/none):",
+              normalizePriority(todo.priority)
+            );
+            if (priorityRaw === null) return;
+            const priority = normalizePriority(priorityRaw);
 
             const response = await fetch(`/todos/${todo.id}`, {
               method: "PUT",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
-                id: todo.id,
+                ...todo,
                 title,
                 description,
+                priority,
                 completed: false,
               }),
             });
@@ -174,6 +240,7 @@
           };
 
           const deleteButton = document.createElement("button");
+          deleteButton.className = "btn-del";
           deleteButton.textContent = "삭제";
           deleteButton.onclick = async () => {
             const response = await fetch(`/todos/${todo.id}`, {
@@ -182,53 +249,40 @@
             if (response.ok) li.remove();
           };
 
-          li.prepend(cb);
-          li.appendChild(label);
-          li.appendChild(editButton);
-          li.appendChild(deleteButton);
-          document.getElementById("todo-list").appendChild(li);
+          right.appendChild(editButton);
+          right.appendChild(deleteButton);
+
+          li.appendChild(left);
+          li.appendChild(right);
+          todoList.appendChild(li);
         });
       }
 
+      // ---- API 래퍼 ----
       async function fetchTodos() {
         const response = await fetch("/todos");
         const todos = await response.json();
-        render(todos);
+        // 서버가 priority를 안 줄 수도 있으니 기본값 보정
+        const normalized = todos.map((t) => ({
+          ...t,
+          priority: normalizePriority(t.priority),
+        }));
+        render(normalized);
       }
 
-      async function editTodo(id) {
-        const title = prompt("Enter new name:");
-        const description = prompt("Enter new student id:");
-        const completed = confirm("Is this task completed?");
-        const response = await fetch(`/todos/${id}`, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ id, title, description, completed }),
-        });
-        if (response.ok) {
-          fetchTodos();
-        }
-      }
-
-      async function deleteTodo(id) {
-        const response = await fetch(`/todos/${id}`, {
-          method: "DELETE",
-        });
-        if (response.ok) {
-          fetchTodos();
-        }
-      }
-
+      // ---- 폼 제출 ----
       document
         .getElementById("todo-form")
         .addEventListener("submit", async (event) => {
           event.preventDefault();
-          const title = document.getElementById("title").value.trim(); // 학번
+          const title = document.getElementById("title").value.trim();
           const description = document
             .getElementById("description")
-            .value.trim(); // 이름
+            .value.trim();
+          const priority = normalizePriority(
+            document.getElementById("priority").value
+          );
+
           if (!title || !description) return;
 
           const response = await fetch("/todos", {
@@ -238,16 +292,20 @@
               id: Date.now(),
               title,
               description,
+              priority, // high | none
               completed: false,
             }),
           });
+
           if (response.ok) {
             document.getElementById("title").value = "";
             document.getElementById("description").value = "";
+            document.getElementById("priority").value = "none";
             fetchTodos();
           }
         });
 
+      // 초기 로드
       fetchTodos();
     </script>
   </body>

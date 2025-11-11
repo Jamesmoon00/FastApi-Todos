@@ -3,11 +3,16 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 import json
 import os
+from typing import Literal, Optional
+from prometheus_fastapi_instrumentator import Instrumentator
 
 # 현재 파일(main.py)이 있는 디렉토리 경로
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 app = FastAPI()
+
+# Prometheus 메트릭스 엔드포인트 (/metrics)
+Instrumentator().instrument(app).expose(app, endpoint="/metrics")
 
 # To-Do 항목 모델
 class TodoItem(BaseModel):
@@ -15,6 +20,7 @@ class TodoItem(BaseModel):
     title: str
     description: str
     completed: bool
+    priority: Literal["high", "none"] = "none"
 
 # JSON 파일 경로
 TODO_FILE = "todo.json"

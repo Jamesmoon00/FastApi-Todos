@@ -5,3 +5,5 @@ pytest-html
 httpx
 pytest-cov
 sqlmodel
+prometheus-fastapi-instrumentator
+prometheus-client
