@@ -14,7 +14,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "5001"]
 
 # Dockerfile for ARM (aarch64) JMeter image
-FROM arm64v8/openjdk:11-jre-slim
+FROM openjdk:11-jre-slim
 
 # Set JMeter version and environment variables
 ENV JMETER_VERSION=5.4.1
