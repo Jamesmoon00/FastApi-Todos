@@ -8,6 +8,29 @@ services:
     container_name: FastApi-app
     ports:
       - "5001:5001"
+    networks:
+      - loadtest-net
+  jmeter:
+    build:
+      context: ./jmeter
+      dockerfile: Dockerfile
+    container_name: jmeter
+    volumes:
+      - ./jmeter:/jmeter
+    command:
+      - jmeter
+      - -n
+      - -t
+      - /jmeter/fastapi_test_plan.jmx
+      - -l
+      - /jmeter/results.jtl
+      - -JBASE_URL=http://fastapi-app:5001
+      - -Jjmeter.save.saveservice.output_format=csv
+      - -e
+      - -o
+      - /jmeter/report
+    networks:
+      - loadtest-net
 
   sonarqube:
     image: sonarqube:latest
@@ -21,6 +44,8 @@ services:
       - sonarqube_data:/opt/sonarqube/data
       - sonarqube_logs:/opt/sonarqube/logs
       - sonarqube_extensions:/opt/sonarqube/extensions
+    networks:
+      - loadtest-net
 
   prometheus:
     image: prom/prometheus:latest
@@ -31,6 +56,8 @@ services:
       - "7070:9090"
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
+    networks:
+      - loadtest-net
   grafana:
     image: grafana/grafana:latest
     container_name: grafana
@@ -40,12 +67,16 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=admin # 기본 Grafana 로그인 비밀번호
     volumes:
       - grafana-data:/var/lib/grafana
+    networks:
+      - loadtest-net
 
   node-exporter:
     image: prom/node-exporter:latest
     container_name: node-exporter
     ports:
       - "7100:9100"
+    networks:
+      - loadtest-net
 
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:latest
@@ -58,6 +89,8 @@ services:
       - /sys:/sys:ro
       - /var/lib/docker/:/var/lib/docker:ro
       - /dev/disk/:/dev/disk:ro
+    networks:
+      - loadtest-net
 
 volumes:
   sonarqube_conf:

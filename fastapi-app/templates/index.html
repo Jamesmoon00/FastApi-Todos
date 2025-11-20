@@ -120,10 +120,31 @@
         color: #777;
         text-align: center;
       }
+      .filter {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+        width: 100%;
+        max-width: 600px;
+      }
+      .filter input {
+        flex: 1;
+        min-width: 160px;
+        padding: 10px 12px;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+      }
     </style>
   </head>
   <body>
     <h1>To-Do List</h1>
+
+    <div class="filter">
+      <input type="text" id="filter-user" placeholder="사용자 이름으로 필터" />
+      <button type="button" id="apply-filter">필터 적용</button>
+      <button type="button" id="reset-filter">전체 보기</button>
+    </div>
 
     <ul id="todo-list"></ul>
 
@@ -259,8 +280,31 @@
       }
 
       // ---- API 래퍼 ----
-      async function fetchTodos() {
-        const response = await fetch("/todos");
+      let currentFilterUser = "";
+      const filterInput = document.getElementById("filter-user");
+      const applyFilterButton = document.getElementById("apply-filter");
+      const resetFilterButton = document.getElementById("reset-filter");
+
+      applyFilterButton.addEventListener("click", () => {
+        fetchTodos(filterInput.value);
+      });
+
+      resetFilterButton.addEventListener("click", () => {
+        filterInput.value = "";
+        fetchTodos("");
+      });
+
+      function todosUrl() {
+        return currentFilterUser
+          ? `/todos?user=${encodeURIComponent(currentFilterUser)}`
+          : "/todos";
+      }
+
+      async function fetchTodos(nextFilter) {
+        if (typeof nextFilter === "string") {
+          currentFilterUser = nextFilter.trim();
+        }
+        const response = await fetch(todosUrl());
         const todos = await response.json();
         // 서버가 priority를 안 줄 수도 있으니 기본값 보정
         const normalized = todos.map((t) => ({

@@ -39,8 +39,11 @@ def save_todos(todos):
 
 # To-Do 목록 조회
 @app.get("/todos", response_model=list[TodoItem])
-def get_todos():
-    return load_todos()
+def get_todos(user: Optional[str] = None):
+    todos = load_todos()
+    if user:
+        return [todo for todo in todos if todo.get("description") == user]
+    return todos
 
 # 신규 To-Do 항목 추가
 @app.post("/todos", response_model=TodoItem)
