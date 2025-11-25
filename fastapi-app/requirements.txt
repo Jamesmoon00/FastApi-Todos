@@ -7,3 +7,4 @@ pytest-cov
 sqlmodel
 prometheus-fastapi-instrumentator
 prometheus-client
+influxdb-client
