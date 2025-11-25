@@ -20,22 +20,19 @@ app = FastAPI()
 Instrumentator().instrument(app).expose(app, endpoint="/metrics")
 
 # =========================================================
-# [추가됨] InfluxDB 설정 및 연결
+# [추가] InfluxDB 설정 및 연결
 # =========================================================
-# Docker Compose에서 설정한 값과 일치해야 합니다.
 INFLUXDB_URL = os.getenv("INFLUXDB_URL", "http://influxdb:8086")
-# 주의: 토큰은 InfluxDB 초기화 시 설정한 토큰이나 웹 UI에서 발급받은 토큰을 넣어야 합니다.
-# 보안을 위해 환경변수로 받는 것이 좋지만, 테스트를 위해 여기에 직접 넣으셔도 됩니다.
 INFLUXDB_TOKEN = os.getenv("INFLUXDB_TOKEN", "my-super-secret-auth-token") 
 INFLUXDB_ORG = os.getenv("INFLUXDB_ORG", "myorg")
 INFLUXDB_BUCKET = os.getenv("INFLUXDB_BUCKET", "mybucket")
 
-# 클라이언트 생성 (연결 실패 시 에러가 나지 않도록 예외처리 할 수도 있음)
+# 클라이언트 생성
 influx_client = InfluxDBClient(url=INFLUXDB_URL, token=INFLUXDB_TOKEN, org=INFLUXDB_ORG)
 write_api = influx_client.write_api(write_options=SYNCHRONOUS)
 
 # =========================================================
-# [추가됨] 미들웨어: 모든 API 요청을 InfluxDB에 기록
+# [추가] 미들웨어
 # =========================================================
 @app.middleware("http")
 async def add_influxdb_middleware(request: Request, call_next):
@@ -47,10 +44,7 @@ async def add_influxdb_middleware(request: Request, call_next):
     # 처리 시간 계산 (밀리초)
     process_time = (time.time() - start_time) * 1000
     
-    # InfluxDB에 기록할 데이터 생성 (Point)
-    # Measurement: "http_requests"
-    # Tags: method(GET/POST), endpoint(/todos), status(200/404)
-    # Fields: duration_ms(처리시간)
+    # InfluxDB에 기록할 데이터 생성
     try:
         point = (
             Point("http_requests")
@@ -66,10 +60,6 @@ async def add_influxdb_middleware(request: Request, call_next):
         print(f"InfluxDB write failed: {e}")
 
     return response
-
-# =========================================================
-# 기존 로직 (To-Do)
-# =========================================================
 
 # To-Do 항목 모델
 class TodoItem(BaseModel):
