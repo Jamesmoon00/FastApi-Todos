@@ -32,6 +32,8 @@ custom_logger.setLevel(logging.INFO)
 # Add Loki handler (assuming `loki_logs_handler` is correctly configured)
 custom_logger.addHandler(loki_logs_handler)
 
+# 요청을 Loki로 구조화해 남기는 미들웨어
+@app.middleware("http")
 async def log_requests(request: Request, call_next):
     start_time = time.time()
     response = await call_next(request)
@@ -41,9 +43,7 @@ async def log_requests(request: Request, call_next):
         f'{request.client.host} - "{request.method} {request.url.path} HTTP/1.1" {response.status_code} {duration:.3f}s'
     )
 
-    # **Only log if duration exists**
-    if duration:
-        custom_logger.info(log_message)
+    custom_logger.info(log_message)
 
     return response
 
