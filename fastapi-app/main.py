@@ -1,15 +1,16 @@
-from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse
-from pydantic import BaseModel
 import json
+import logging
 import os
 import time
+from queue import Queue
 from typing import Literal, Optional
-from prometheus_fastapi_instrumentator import Instrumentator
 
-# [추가됨] InfluxDB 관련 라이브러리 임포트
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import HTMLResponse
 from influxdb_client import InfluxDBClient, Point
 from influxdb_client.client.write_api import SYNCHRONOUS
+from logging_loki import LokiQueueHandler
+from prometheus_fastapi_instrumentator import Instrumentator
 
 # 현재 파일(main.py)이 있는 디렉토리 경로
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -18,7 +19,7 @@ app = FastAPI()
 
 loki_logs_handler = LokiQueueHandler(
     Queue(-1),
-    url=getenv("LOKI_ENDPOINT"),
+    url=os.getenv("LOKI_ENDPOINT", "http://loki:3100/loki/api/v1/push"),
     tags={"application": "fastapi"},
     version="1",
 )
