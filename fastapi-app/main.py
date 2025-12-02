@@ -11,6 +11,7 @@ from influxdb_client import InfluxDBClient, Point
 from influxdb_client.client.write_api import SYNCHRONOUS
 from logging_loki import LokiQueueHandler
 from prometheus_fastapi_instrumentator import Instrumentator
+from pydantic import BaseModel
 
 # 현재 파일(main.py)이 있는 디렉토리 경로
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
