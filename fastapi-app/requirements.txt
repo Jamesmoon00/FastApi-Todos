@@ -8,3 +8,4 @@ sqlmodel
 prometheus-fastapi-instrumentator
 prometheus-client
 influxdb-client
+python-logging-loki==0.3.1

@@ -135,6 +135,44 @@
         border: 1px solid #ccc;
         border-radius: 8px;
       }
+      .section {
+        width: 100%;
+        max-width: 600px;
+        margin-bottom: 16px;
+      }
+      .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+      }
+      .section-title {
+        margin: 0;
+        font-size: 18px;
+        color: #1e88e5;
+      }
+      .toggle-btn {
+        background: none;
+        color: #1e88e5;
+        border: 1px solid #1e88e5;
+        padding: 6px 10px;
+        border-radius: 20px;
+        font-size: 13px;
+      }
+      .toggle-btn:hover {
+        background: #e3f2fd;
+      }
+      .hidden {
+        display: none;
+      }
+      .completed-item {
+        opacity: 0.8;
+        text-decoration: line-through;
+        background: #f4f6f8;
+      }
+      .muted {
+        color: #777;
+      }
     </style>
   </head>
   <body>
@@ -146,7 +184,22 @@
       <button type="button" id="reset-filter">전체 보기</button>
     </div>
 
-    <ul id="todo-list"></ul>
+    <div class="section">
+      <div class="section-header">
+        <h2 class="section-title">할 일</h2>
+      </div>
+      <ul id="todo-list"></ul>
+    </div>
+
+    <div class="section">
+      <div class="section-header">
+        <h2 class="section-title muted">완료됨</h2>
+        <button type="button" id="toggle-completed" class="toggle-btn">
+          완료 목록 열기
+        </button>
+      </div>
+      <ul id="completed-list" class="hidden"></ul>
+    </div>
 
     <form id="todo-form">
       <input type="text" id="title" placeholder="할일" required />
@@ -176,7 +229,9 @@
       // ---- 렌더 ----
       function render(todos) {
         const todoList = document.getElementById("todo-list");
+        const completedList = document.getElementById("completed-list");
         todoList.innerHTML = "";
+        completedList.innerHTML = "";
 
         // 미완료만 표시
         const active = todos.filter((t) => !t.completed);
@@ -185,98 +240,157 @@
           li.className = "empty";
           li.textContent = "할 일이 없습니다.";
           todoList.appendChild(li);
-          return;
-        }
+        } else {
+          const sorted = sortByPriorityThenTime(active);
 
-        const sorted = sortByPriorityThenTime(active);
+          sorted.forEach((todo) => {
+            const li = document.createElement("li");
 
-        sorted.forEach((todo) => {
-          const li = document.createElement("li");
+            // 왼쪽(체크박스+라벨)
+            const left = document.createElement("div");
+            left.className = "left";
 
-          // 왼쪽(체크박스+라벨)
-          const left = document.createElement("div");
-          left.className = "left";
+            const cb = document.createElement("input");
+            cb.type = "checkbox";
+            cb.checked = false;
+            cb.title = "완료로 표시";
+            cb.addEventListener("change", async () => {
+              if (cb.checked) {
+                await fetch(`/todos/${todo.id}`, {
+                  method: "PUT",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ ...todo, completed: true }),
+                });
+                fetchTodos(currentFilterUser);
+              }
+            });
 
-          const cb = document.createElement("input");
-          cb.type = "checkbox";
-          cb.checked = false;
-          cb.title = "완료로 표시";
-          cb.addEventListener("change", async () => {
-            if (cb.checked) {
-              await fetch(`/todos/${todo.id}`, {
+            const label = document.createElement("span");
+            label.textContent = `${todo.title}: ${todo.description}`;
+
+            const badge = document.createElement("span");
+            const p = normalizePriority(todo.priority);
+            badge.textContent = p === "high" ? "HIGH" : "-";
+            badge.className = "priority-badge " + p;
+
+            left.appendChild(cb);
+            left.appendChild(label);
+            left.appendChild(badge);
+
+            // 오른쪽(수정/삭제)
+            const right = document.createElement("div");
+            right.className = "right";
+
+            const editButton = document.createElement("button");
+            editButton.className = "btn-edit";
+            editButton.textContent = "수정";
+            editButton.onclick = async () => {
+              const title = prompt("새로운 할 일을 입력하세요:", todo.title);
+              if (title === null) return;
+              const description = prompt(
+                "새 이름을 입력하세요:",
+                todo.description
+              );
+              if (description === null) return;
+              const priorityRaw = prompt(
+                "우선순위 (high/none):",
+                normalizePriority(todo.priority)
+              );
+              if (priorityRaw === null) return;
+              const priority = normalizePriority(priorityRaw);
+
+              const response = await fetch(`/todos/${todo.id}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ ...todo, completed: true }),
+                body: JSON.stringify({
+                  ...todo,
+                  title,
+                  description,
+                  priority,
+                  completed: false,
+                }),
               });
-              li.remove();
-            }
+              if (response.ok) fetchTodos(currentFilterUser);
+            };
+
+            const deleteButton = document.createElement("button");
+            deleteButton.className = "btn-del";
+            deleteButton.textContent = "삭제";
+            deleteButton.onclick = async () => {
+              const response = await fetch(`/todos/${todo.id}`, {
+                method: "DELETE",
+              });
+              if (response.ok) fetchTodos(currentFilterUser);
+            };
+
+            right.appendChild(editButton);
+            right.appendChild(deleteButton);
+
+            li.appendChild(left);
+            li.appendChild(right);
+            todoList.appendChild(li);
           });
+        }
 
-          const label = document.createElement("span");
-          label.textContent = `${todo.title}: ${todo.description}`;
+        // 완료된 항목
+        const completed = todos.filter((t) => t.completed);
+        if (completed.length === 0) {
+          const li = document.createElement("li");
+          li.className = "empty";
+          li.textContent = "완료된 항목이 없습니다.";
+          completedList.appendChild(li);
+        } else {
+          sortByPriorityThenTime(completed).forEach((todo) => {
+            const li = document.createElement("li");
+            li.classList.add("completed-item");
 
-          const badge = document.createElement("span");
-          const p = normalizePriority(todo.priority);
-          badge.textContent = p === "high" ? "HIGH" : "-";
-          badge.className = "priority-badge " + p;
+            const left = document.createElement("div");
+            left.className = "left";
 
-          left.appendChild(cb);
-          left.appendChild(label);
-          left.appendChild(badge);
+            const label = document.createElement("span");
+            label.textContent = `${todo.title}: ${todo.description}`;
 
-          // 오른쪽(수정/삭제)
-          const right = document.createElement("div");
-          right.className = "right";
+            const badge = document.createElement("span");
+            const p = normalizePriority(todo.priority);
+            badge.textContent = p === "high" ? "HIGH" : "-";
+            badge.className = "priority-badge " + p;
 
-          const editButton = document.createElement("button");
-          editButton.className = "btn-edit";
-          editButton.textContent = "수정";
-          editButton.onclick = async () => {
-            const title = prompt("새로운 할 일을 입력하세요:", todo.title);
-            if (title === null) return;
-            const description = prompt(
-              "새 이름을 입력하세요:",
-              todo.description
-            );
-            if (description === null) return;
-            const priorityRaw = prompt(
-              "우선순위 (high/none):",
-              normalizePriority(todo.priority)
-            );
-            if (priorityRaw === null) return;
-            const priority = normalizePriority(priorityRaw);
+            left.appendChild(label);
+            left.appendChild(badge);
 
-            const response = await fetch(`/todos/${todo.id}`, {
-              method: "PUT",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                ...todo,
-                title,
-                description,
-                priority,
-                completed: false,
-              }),
-            });
-            if (response.ok) fetchTodos();
-          };
+            const right = document.createElement("div");
+            right.className = "right";
 
-          const deleteButton = document.createElement("button");
-          deleteButton.className = "btn-del";
-          deleteButton.textContent = "삭제";
-          deleteButton.onclick = async () => {
-            const response = await fetch(`/todos/${todo.id}`, {
-              method: "DELETE",
-            });
-            if (response.ok) li.remove();
-          };
+            const undoButton = document.createElement("button");
+            undoButton.textContent = "되돌리기";
+            undoButton.className = "btn-edit";
+            undoButton.onclick = async () => {
+              const response = await fetch(`/todos/${todo.id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ ...todo, completed: false }),
+              });
+              if (response.ok) fetchTodos(currentFilterUser);
+            };
 
-          right.appendChild(editButton);
-          right.appendChild(deleteButton);
+            const deleteButton = document.createElement("button");
+            deleteButton.className = "btn-del";
+            deleteButton.textContent = "삭제";
+            deleteButton.onclick = async () => {
+              const response = await fetch(`/todos/${todo.id}`, {
+                method: "DELETE",
+              });
+              if (response.ok) fetchTodos(currentFilterUser);
+            };
 
-          li.appendChild(left);
-          li.appendChild(right);
-          todoList.appendChild(li);
-        });
+            right.appendChild(undoButton);
+            right.appendChild(deleteButton);
+
+            li.appendChild(left);
+            li.appendChild(right);
+            completedList.appendChild(li);
+          });
+        }
       }
 
       // ---- API 래퍼 ----
@@ -284,6 +398,8 @@
       const filterInput = document.getElementById("filter-user");
       const applyFilterButton = document.getElementById("apply-filter");
       const resetFilterButton = document.getElementById("reset-filter");
+      const toggleCompletedButton = document.getElementById("toggle-completed");
+      const completedListElement = document.getElementById("completed-list");
 
       applyFilterButton.addEventListener("click", () => {
         fetchTodos(filterInput.value);
@@ -292,6 +408,14 @@
       resetFilterButton.addEventListener("click", () => {
         filterInput.value = "";
         fetchTodos("");
+      });
+
+      // 완료 목록 토글
+      toggleCompletedButton.addEventListener("click", () => {
+        const hidden = completedListElement.classList.toggle("hidden");
+        toggleCompletedButton.textContent = hidden
+          ? "완료 목록 열기"
+          : "완료 목록 닫기";
       });
 
       function todosUrl() {
